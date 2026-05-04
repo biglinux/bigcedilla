@@ -1,0 +1,24 @@
+#!/bin/bash
+# Restores Maliit as the KWin Wayland input method.
+
+set -euo pipefail
+
+MALIIT_DESKTOP='/usr/share/applications/com.github.maliit.keyboard.desktop'
+
+if command -v kwriteconfig6 >/dev/null 2>&1; then
+    KWRITE=kwriteconfig6
+elif command -v kwriteconfig5 >/dev/null 2>&1; then
+    KWRITE=kwriteconfig5
+else
+    echo "error: kwriteconfig6/5 not found" >&2
+    exit 1
+fi
+
+if [[ -f "$MALIIT_DESKTOP" ]]; then
+    "$KWRITE" --file kwinrc --group Wayland --key InputMethod "$MALIIT_DESKTOP"
+    echo "==> KWin InputMethod restored to Maliit."
+else
+    "$KWRITE" --file kwinrc --group Wayland --key --delete InputMethod
+    echo "==> KWin InputMethod cleared (Maliit not installed)."
+fi
+echo "==> Reload KWin: qdbus6 org.kde.KWin /KWin reconfigure"

@@ -1,0 +1,34 @@
+post_install() {
+    cat <<'EOF'
+
+==> bigcedilla installed.
+==> KWin spawns it automatically when registered as InputMethod.
+==> bigcedilla now proxies to plasma-keyboard by default (falls back to
+==> maliit-keyboard if plasma-keyboard is missing); both the cedilla fix
+==> AND the virtual keyboard work together.
+==> Activate (run as the desktop user, NOT root):
+       bigcedilla-configure-kwin
+       qdbus6 org.kde.KWin /KWin reconfigure
+==> Use Maliit instead: BIGCEDILLA_CHILD_IM=maliit-keyboard
+==> Restore previous IM at any time:
+       bigcedilla-restore-maliit
+       qdbus6 org.kde.KWin /KWin reconfigure
+EOF
+}
+
+post_upgrade() {
+    cat <<'EOF'
+
+==> bigcedilla upgraded. Restart KWin's input method:
+       qdbus6 org.kde.KWin /KWin reconfigure
+EOF
+}
+
+pre_remove() {
+    cat <<'EOF'
+
+==> Reminder: if bigcedilla is the active KWin InputMethod, restore Maliit
+==> (or another keyboard) BEFORE removing this package:
+       bigcedilla-restore-maliit
+EOF
+}

@@ -1,0 +1,73 @@
+#!/bin/bash
+# Decides whether bigcedilla is useful on this account.
+#
+# bigcedilla rewrites dead_acute + c -> ç. That sequence is only relevant for
+# layouts whose XCompose maps ' / ´ + c to U+00E7. Layouts with ç as a direct
+# key (French AZERTY, Turkish, Albanian, Azeri, Tatar) do not need it.
+#
+# Exit 0  -> activate bigcedilla.
+# Exit 1  -> skip; the user does not benefit from the proxy.
+#
+# Override:
+#   BIGCEDILLA_FORCE=1   always exit 0
+#   BIGCEDILLA_FORCE=0   always exit 1
+
+set -u
+
+case "${BIGCEDILLA_FORCE:-}" in
+    1) exit 0 ;;
+    0) exit 1 ;;
+esac
+
+# 1. Locale check — Portuguese (BR+PT), Catalan, Occitan, Friulian.
+locale_blob="${LANG:-}:${LC_ALL:-}:${LC_CTYPE:-}:${LC_MESSAGES:-}"
+case "$locale_blob" in
+    *pt_*|*ca_*|*oc_*|*fur_*) exit 0 ;;
+esac
+
+# 2. KDE layout (kxkbrc) — Wayland-friendly path.
+read_kde() {
+    local key="$1"
+    if command -v kreadconfig6 >/dev/null 2>&1; then
+        kreadconfig6 --file kxkbrc --group Layout --key "$key" 2>/dev/null
+    elif command -v kreadconfig5 >/dev/null 2>&1; then
+        kreadconfig5 --file kxkbrc --group Layout --key "$key" 2>/dev/null
+    fi
+}
+layouts="$(read_kde LayoutList)"
+variants="$(read_kde VariantList)"
+
+# 3. Fallback: localectl (works for systemd-localed users).
+if [[ -z "$layouts" ]] && command -v localectl >/dev/null 2>&1; then
+    info="$(localectl status 2>/dev/null || true)"
+    layouts="$(awk -F: '/X11 Layout/  {gsub(/[ \t]/,"",$2); print $2}' <<<"$info")"
+    variants="$(awk -F: '/X11 Variant/ {gsub(/[ \t]/,"",$2); print $2}' <<<"$info")"
+fi
+
+# 4. Last resort: setxkbmap on X11 sessions.
+if [[ -z "$layouts" ]] && command -v setxkbmap >/dev/null 2>&1; then
+    info="$(setxkbmap -query 2>/dev/null || true)"
+    layouts="$(awk '/^layout:/  {print $2}' <<<"$info")"
+    variants="$(awk '/^variant:/ {print $2}' <<<"$info")"
+fi
+
+[[ -z "$layouts" ]] && exit 1
+
+# Match each (layout, variant) pair.
+IFS=',' read -ra LAYOUTS  <<<"$layouts"
+IFS=',' read -ra VARIANTS <<<"$variants"
+for i in "${!LAYOUTS[@]}"; do
+    l="${LAYOUTS[$i],,}"
+    v="${VARIANTS[$i]:-}"
+    v="${v,,}"
+    case "$l" in
+        br|pt|ca|oc) exit 0 ;;
+        us)
+            case "$v" in
+                *intl*|*altgr*) exit 0 ;;
+            esac
+            ;;
+    esac
+done
+
+exit 1

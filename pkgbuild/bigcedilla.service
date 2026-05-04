@@ -1,0 +1,72 @@
+# Optional user-service unit for bigcedilla.
+#
+# KWin normally spawns the registered InputMethod directly, so this unit is
+# NOT required. It is shipped as a documented hardening reference for users
+# who prefer to run bigcedilla as a sandboxed user service (e.g. when
+# debugging, when KWin's spawn lifecycle is unwanted, or to demonstrate the
+# minimum-privilege posture for audits).
+#
+# Enable per-user:
+#   systemctl --user enable --now bigcedilla.service
+#
+# Audit the sandbox score:
+#   systemd-analyze --user security bigcedilla.service
+
+[Unit]
+Description=BigLinux cedilla MITM proxy for Wayland input-method-v1
+Documentation=https://github.com/biglinux/bigcedilla
+PartOf=graphical-session.target
+After=graphical-session.target
+
+[Service]
+Type=simple
+# Skip activation when the user's locale and keyboard layout do not benefit
+# from dead_acute+c -> ç rewrite (e.g. French AZERTY, Turkish, Albanian — all
+# have ç as a direct key). Override with BIGCEDILLA_FORCE=1.
+ExecCondition=/usr/bin/bigcedilla-check-layout
+ExecStart=/usr/bin/bigcedilla
+Restart=on-failure
+RestartSec=2
+TimeoutStopSec=5
+
+# Privileges
+NoNewPrivileges=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+
+# Filesystem
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+ProtectProc=invisible
+ProcSubset=pid
+
+# Network — bigcedilla must only speak Wayland on the AF_UNIX IM private socket.
+PrivateNetwork=true
+RestrictAddressFamilies=AF_UNIX
+
+# Memory + execution
+MemoryDenyWriteExecute=true
+LockPersonality=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+RestrictNamespaces=true
+RemoveIPC=true
+
+# Syscalls — keep what a Wayland userspace daemon needs, drop the rest.
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources @debug @mount @obsolete @cpu-emulation @raw-io
+
+# Misc
+UMask=0077
+
+[Install]
+WantedBy=graphical-session.target

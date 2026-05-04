@@ -1,0 +1,43 @@
+#!/bin/bash
+# Registers bigcedilla as the active KWin input method for the current user.
+# Run AFTER package install, AS the desktop user (not root).
+#
+# Side effects:
+# - Replaces any previous Wayland InputMethod (e.g. Maliit virtual keyboard).
+# - KWin must be reloaded for changes to take effect.
+
+set -euo pipefail
+
+DESKTOP_FILE='/usr/share/applications/bigcedilla.desktop'
+CHECK_LAYOUT='/usr/bin/bigcedilla-check-layout'
+
+if [[ ! -f "$DESKTOP_FILE" ]]; then
+    echo "error: $DESKTOP_FILE missing — package not installed?" >&2
+    exit 1
+fi
+
+if [[ "${1:-}" != "--force" ]] && [[ -x "$CHECK_LAYOUT" ]] && ! "$CHECK_LAYOUT"; then
+    cat >&2 <<EOF
+==> Your locale/layout does not need bigcedilla.
+==> dead_acute+c -> ç matters mostly for pt_BR, pt_PT, US-International,
+==> Catalan and Occitan layouts. Layouts with ç as a direct key (French
+==> AZERTY, Turkish, Albanian, Azeri) work fine without this proxy.
+==> Re-run with --force to register anyway, or set BIGCEDILLA_FORCE=1.
+EOF
+    exit 2
+fi
+
+if command -v kwriteconfig6 >/dev/null 2>&1; then
+    KWRITE=kwriteconfig6
+elif command -v kwriteconfig5 >/dev/null 2>&1; then
+    KWRITE=kwriteconfig5
+else
+    echo "error: kwriteconfig6/5 not found — KDE Frameworks required" >&2
+    exit 1
+fi
+
+"$KWRITE" --file kwinrc --group Wayland --key InputMethod "$DESKTOP_FILE"
+echo "==> KWin InputMethod set to bigcedilla."
+echo "==> Reload KWin to apply:"
+echo "       qdbus6 org.kde.KWin /KWin reconfigure"
+echo "    or log out and back in."

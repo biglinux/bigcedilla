@@ -1,0 +1,45 @@
+[package]
+name = "bigcedilla"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.89"
+license = "GPL-3.0-or-later"
+description = "Wayland input-method-v1 MITM proxy: dead_acute+c -> ç while keeping plasma-keyboard/Maliit alive"
+authors = ["BigLinux Team"]
+
+[[bin]]
+name = "bigcedilla"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1"
+log = "0.4"
+env_logger = "0.11"
+libc = "0.2"
+xkbcommon = "0.8"
+wl-proxy = { version = "0.1.2", default-features = false, features = [
+    "logging",
+    "suite-wayland-protocols",
+    "protocol-input_method_unstable_v1",
+    "protocol-virtual_keyboard_unstable_v1",
+    "protocol-text_input_unstable_v1",
+    "protocol-text_input_unstable_v3",
+] }
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+strip = true
+codegen-units = 1
+panic = "abort"
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+dbg_macro = "warn"
+todo = "warn"
+
+[lints.rust]
+unsafe_op_in_unsafe_fn = "warn"
+unused_imports = "warn"
+unused_variables = "warn"
+unused_mut = "warn"

@@ -1,0 +1,65 @@
+# Maintainer: Bruno Gonçalves <www.biglinux.com.br>
+
+pkgname=bigcedilla
+pkgver=0.1.0
+pkgrel=1
+pkgdesc='Wayland IM proxy: dead_acute+c -> c-cedilla on KWin while keeping plasma-keyboard/Maliit alive'
+arch=('x86_64' 'aarch64')
+url='https://github.com/biglinux/bigcedilla'
+license=('GPL-3.0-or-later')
+depends=('libxkbcommon' 'wayland' 'gcc-libs' 'glibc')
+optdepends=(
+    'plasma-keyboard: default child virtual keyboard'
+    'maliit-keyboard: alternative child virtual keyboard (BIGCEDILLA_CHILD_IM=maliit-keyboard)'
+    'kf6-frameworks: kwriteconfig6 helper for KWin auto-config'
+)
+makedepends=('rust' 'cargo')
+provides=('bigcedilla')
+conflicts=('bigcedilla-git')
+install=bigcedilla.install
+source=()
+sha256sums=()
+
+_projectroot="$startdir/.."
+
+prepare() {
+    cd "$_projectroot"
+    cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
+}
+
+build() {
+    cd "$_projectroot"
+    export RUSTUP_TOOLCHAIN=stable
+    export CARGO_TARGET_DIR="$srcdir/target"
+    cargo build --frozen --release --all-features
+}
+
+check() {
+    cd "$_projectroot"
+    export RUSTUP_TOOLCHAIN=stable
+    export CARGO_TARGET_DIR="$srcdir/target"
+    cargo test --frozen --release
+}
+
+package() {
+    install -Dm755 "$srcdir/target/release/bigcedilla" \
+        "$pkgdir/usr/bin/bigcedilla"
+
+    install -Dm644 "$startdir/bigcedilla.desktop" \
+        "$pkgdir/usr/share/applications/bigcedilla.desktop"
+
+    install -Dm755 "$startdir/bigcedilla-configure-kwin" \
+        "$pkgdir/usr/bin/bigcedilla-configure-kwin"
+
+    install -Dm755 "$startdir/bigcedilla-restore-maliit" \
+        "$pkgdir/usr/bin/bigcedilla-restore-maliit"
+
+    install -Dm755 "$startdir/bigcedilla-check-layout" \
+        "$pkgdir/usr/bin/bigcedilla-check-layout"
+
+    install -Dm644 "$startdir/bigcedilla.service" \
+        "$pkgdir/usr/lib/systemd/user/bigcedilla.service"
+
+    install -Dm644 "$_projectroot/README.md" \
+        "$pkgdir/usr/share/doc/bigcedilla/README.md"
+}
